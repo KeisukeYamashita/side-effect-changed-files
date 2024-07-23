@@ -32,9 +32,10 @@ jobs:
             .github/workflows/*.yml:
               - src/**/*.ts
 
-            script/:
+            src/*.ts:
               - .github/workflows/*.yml
           matrix: true
+          merge: true
     
   hello:
     name: Hello
