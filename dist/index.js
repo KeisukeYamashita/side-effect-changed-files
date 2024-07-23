@@ -32247,7 +32247,7 @@ async function map(kind, targets, mapping, args) {
         const files = (0, micromatch_1.default)(targets, globs);
         core.debug(`Micromatch-ed: ${JSON.stringify(files)}`);
         if (files.length) {
-            let result = await fast_glob_1.default.glob(globs);
+            let result = await fast_glob_1.default.glob(key);
             core.debug(`Globbed: ${JSON.stringify(result)}`);
             if (args?.relative ?? true) {
                 result = result.map((f) => f.replace(`${process.env.GITHUB_WORKSPACE}/`, ""));
