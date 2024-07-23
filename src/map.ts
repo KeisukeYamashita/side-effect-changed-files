@@ -61,7 +61,7 @@ export async function map(
 		core.debug(`Micromatch-ed: ${JSON.stringify(files)}`);
 
 		if (files.length) {
-			let result = await fg.glob(globs);
+			let result = await fg.glob(key);
 
 			core.debug(`Globbed: ${JSON.stringify(result)}`);
 
