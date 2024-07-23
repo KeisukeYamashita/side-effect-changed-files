@@ -1,0 +1,52 @@
+name: Side effect changed files
+description: GitHub Actions to trigger side effect based on changed files
+author: KeisukeYamashita
+
+branding:
+  icon: radio
+  color: gray-dark
+
+inputs:
+  dir_names:
+    description: Output unique changed directories instead of filenames.
+    required: true
+    default: "false"
+
+  escape_json:
+    description: Escape JSON special characters.
+    required: false
+    default: "false"
+
+  files:
+    description: Files to check for the side effects.
+    required: true
+
+  json:
+    description: Output files in JSON format.
+    required: false
+    default: "false"
+
+  mapping:
+    description: Mapping of the files and its side effects.
+    required: true
+
+  matrix:
+    description: Output files in a format that can be used for GitHub Action's matrix strategy.
+    required: false
+    default: "false"
+
+  merge:
+    description: Merge the files and its side effects.
+    required: false
+    default: "false"
+
+outputs:
+  files:
+    description: List of changed files.
+
+  files_count:
+    description: Number of the files.
+
+runs:
+  using: node20
+  main: dist/index.js

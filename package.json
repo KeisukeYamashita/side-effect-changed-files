@@ -1,0 +1,87 @@
+{
+  "name": "side-effect-changed-files",
+  "description": "GitHub Actions to trigger side effect based on changed files",
+  "version": "0.1.0",
+  "author": "KeisukeYamashita <19yamashita15@gmail.com>",
+  "private": true,
+  "homepage": "https://github.com/KeisukeYamashita/merge-changed-files",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/KeisukeYamashita/merge-changed-files.git"
+  },
+  "bugs": {
+    "url": "https://github.com/KeisukeYamashita/merge-changed-files/issues"
+  },
+  "keywords": [
+    "actions",
+    "node",
+    "setup"
+  ],
+  "exports": {
+    ".": "./dist/index.js"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "bundle": "npm run format:write && npm run package",
+    "ci-test": "jest",
+    "coverage": "make-coverage-badge --output-path ./badges/coverage.svg",
+    "format": "biome lint src",
+    "format:write": "biome lint --write src",
+    "lint": "biome lint src",
+    "package": "npx ncc build src/index.ts -o dist --source-map --license licenses.txt",
+    "package:watch": "npm run package -- --watch",
+    "test": "npx jest",
+    "all": "npm run format:write && npm run lint && npm run test && npm run coverage && npm run package"
+  },
+  "license": "MIT",
+  "jest": {
+    "preset": "ts-jest",
+    "verbose": true,
+    "clearMocks": true,
+    "testEnvironment": "node",
+    "moduleFileExtensions": [
+      "js",
+      "ts"
+    ],
+    "testMatch": [
+      "**/*.test.ts"
+    ],
+    "testPathIgnorePatterns": [
+      "/node_modules/",
+      "/dist/"
+    ],
+    "transform": {
+      "^.+\\.ts$": "ts-jest"
+    },
+    "coverageReporters": [
+      "json-summary",
+      "text",
+      "lcov"
+    ],
+    "collectCoverage": true,
+    "collectCoverageFrom": [
+      "./src/**"
+    ]
+  },
+  "dependencies": {
+    "@actions/core": "^1.10.1",
+    "@actions/glob": "^0.4.0",
+    "micromatch": "^4.0.7",
+    "yaml": "^2.4.5"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^1.8.3",
+    "@jest/globals": "^29.7.0",
+    "@types/jest": "^29.5.12",
+    "@types/micromatch": "^4.0.9",
+    "@types/node": "^20.14.11",
+    "@typescript-eslint/parser": "^7.16.1",
+    "@vercel/ncc": "^0.38.1",
+    "jest": "^29.7.0",
+    "make-coverage-badge": "^1.2.0",
+    "ts-jest": "^29.2.3",
+    "typescript": "^5.5.3"
+  }
+}
