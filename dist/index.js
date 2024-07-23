@@ -32330,6 +32330,7 @@ function setOutput(kind, value, opts) {
     if (opts?.count) {
         core.setOutput(`${kind}_count`, value.length);
     }
+    core.setOutput("changed", value.length > 0);
 }
 
 
