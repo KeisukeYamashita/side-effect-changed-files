@@ -41,6 +41,9 @@ inputs:
     default: "false"
 
 outputs:
+  changed:
+    description: Boolean value indicating whether the files have changed.
+
   files:
     description: List of changed files.
 
