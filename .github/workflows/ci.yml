@@ -32,7 +32,7 @@ jobs:
             .github/workflows/*.yml:
               - src/**/*.ts
 
-            script/:
+            src/{config,main}.ts:
               - .github/workflows/*.yml
           matrix: true
     

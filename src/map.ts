@@ -1,5 +1,5 @@
 import * as core from "@actions/core";
-import * as glob from "@actions/glob";
+import fg from "fast-glob";
 import micromatch from "micromatch";
 import type { Kind } from "./util";
 import * as util from "./util";
@@ -61,8 +61,7 @@ export async function map(
 		core.debug(`Micromatch-ed: ${JSON.stringify(files)}`);
 
 		if (files.length) {
-			const globber = await glob.create(key);
-			let result = await globber.glob();
+			let result = await fg.glob(globs);
 
 			core.debug(`Globbed: ${JSON.stringify(result)}`);
 
