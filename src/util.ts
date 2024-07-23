@@ -32,4 +32,6 @@ export function setOutput(
 	if (opts?.count) {
 		core.setOutput(`${kind}_count`, value.length);
 	}
+
+	core.setOutput("changed", value.length > 0);
 }
