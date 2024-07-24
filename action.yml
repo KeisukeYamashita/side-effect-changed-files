@@ -21,6 +21,10 @@ inputs:
     description: Files to check for the side effects.
     required: true
 
+  filter:
+    description: Filter the results with glob pattern.
+    required: false
+
   json:
     description: Output files in JSON format.
     required: false

@@ -17,6 +17,11 @@ export type MapArgs = {
 	escape_json?: boolean;
 
 	/**
+	 * Filter glob patterns.
+	 */
+	filter?: string[];
+
+	/**
 	 * Merge the output of the mapping with the existing inputs.
 	 *
 	 * @default true
@@ -49,7 +54,7 @@ export async function map(
 	mapping: Record<string, string[]>,
 	args?: MapArgs,
 ): Promise<string[]> {
-	const results: string[] = [];
+	let results: string[] = [];
 
 	core.startGroup(`Mapping files for ${kind}...`);
 	core.debug(`Arguments: ${JSON.stringify(args)}`);
@@ -89,6 +94,11 @@ export async function map(
 	if (args?.merge) {
 		core.debug("Merging with existing inputs...");
 		results.push(...targets);
+	}
+
+	if (args?.filter?.length) {
+		core.debug(`Filtering results with filter ${JSON.stringify(args.filter)}`);
+		results = micromatch(results, args.filter);
 	}
 
 	core.info(`Result: ${JSON.stringify(results)}`);

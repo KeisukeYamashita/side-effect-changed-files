@@ -18,6 +18,11 @@ export type Config = {
 	files: string[];
 
 	/**
+	 * Filter glob patterns.
+	 */
+	filter?: string[];
+
+	/**
 	 * YAML configuration for the mapping.
 	 *
 	 * It describes which files should be mapped to which output.

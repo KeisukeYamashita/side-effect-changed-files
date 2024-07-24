@@ -12,8 +12,9 @@ export async function run(): Promise<void> {
 	try {
 		const config: Config = {
 			dirNames: core.getInput("dir_names", { required: true }) === "true",
-			files: core.getInput("files").split(" "),
 			escape_json: core.getInput("escape_json", { required: true }) === "true",
+			files: core.getInput("files", { required: false }).split(" "),
+			filter: core.getMultilineInput("filter", { required: false }),
 			json:
 				core.getInput("json", { required: true }) === "true" ||
 				core.getInput("matrix", { required: true }) === "true",
