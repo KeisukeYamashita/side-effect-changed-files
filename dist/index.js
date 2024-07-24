@@ -32176,8 +32176,9 @@ async function run() {
     try {
         const config = {
             dirNames: core.getInput("dir_names", { required: true }) === "true",
-            files: core.getInput("files").split(" "),
             escape_json: core.getInput("escape_json", { required: true }) === "true",
+            files: core.getInput("files", { required: false }).split(" "),
+            filter: core.getMultilineInput("filter", { required: false }),
             json: core.getInput("json", { required: true }) === "true" ||
                 core.getInput("matrix", { required: true }) === "true",
             mapping: yaml_1.default.parse(core.getInput("mapping", { required: true })),
@@ -32239,7 +32240,7 @@ const path = __importStar(__nccwpck_require__(9411));
  * Map processes the mapping and the input and output of the data.
  */
 async function map(kind, targets, mapping, args) {
-    const results = [];
+    let results = [];
     core.startGroup(`Mapping files for ${kind}...`);
     core.debug(`Arguments: ${JSON.stringify(args)}`);
     for (const [key, globs] of Object.entries(mapping)) {
@@ -32265,6 +32266,10 @@ async function map(kind, targets, mapping, args) {
     if (args?.merge) {
         core.debug("Merging with existing inputs...");
         results.push(...targets);
+    }
+    if (args?.filter?.length) {
+        core.debug(`Filtering results with filter ${JSON.stringify(args.filter)}`);
+        results = (0, micromatch_1.default)(results, args.filter);
     }
     core.info(`Result: ${JSON.stringify(results)}`);
     util.setOutput(kind, results, {
