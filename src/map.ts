@@ -34,15 +34,6 @@ export type MapArgs = {
 	 * @default false
 	 */
 	json?: boolean;
-
-	/**
-	 * Found files are relative to the root of the repository.
-	 *
-	 * `tf-actions/changed-files` returns relative paths so this should be set to `true` as default.
-	 *
-	 * @default true
-	 */
-	relative?: boolean;
 };
 
 /**
@@ -69,16 +60,6 @@ export async function map(
 			let result = await fg.glob(key);
 
 			core.debug(`Globbed: ${JSON.stringify(result)}`);
-
-			if (args?.relative ?? true) {
-				result = result.map((f) =>
-					f.replace(`${process.env.GITHUB_WORKSPACE}/`, ""),
-				);
-				core.debug(
-					`Trimmed to relative: ${JSON.stringify(result)}, workspace: ${process.env.GITHUB_WORKSPACE}`,
-				);
-			}
-
 			if (args?.dirNames) {
 				result = result.map((f) => path.dirname(f));
 				result = Array.from(new Set(result)); // Remove duplications
@@ -97,8 +78,11 @@ export async function map(
 	}
 
 	if (args?.filter?.length) {
-		core.debug(`Filtering results with filter ${JSON.stringify(args.filter)}`);
+		core.debug(
+			`Filtering results ${JSON.stringify(results)} with filter ${JSON.stringify(args.filter)}`,
+		);
 		results = micromatch(results, args.filter);
+		core.debug(`Filtered: ${JSON.stringify(results)}`);
 	}
 
 	core.info(`Result: ${JSON.stringify(results)}`);
