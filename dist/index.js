@@ -32179,6 +32179,7 @@ async function run() {
             escape_json: core.getInput("escape_json", { required: true }) === "true",
             files: core.getInput("files", { required: false }).split(" "),
             filter: core.getMultilineInput("filter", { required: false }),
+            include: core.getInput("include", { required: false }) === "true",
             json: core.getInput("json", { required: true }) === "true" ||
                 core.getInput("matrix", { required: true }) === "true",
             mapping: yaml_1.default.parse(core.getInput("mapping", { required: true })),
@@ -32245,6 +32246,11 @@ async function map(kind, targets, mapping, args) {
     core.debug(`Arguments: ${JSON.stringify(args)}`);
     for (const [key, globs] of Object.entries(mapping)) {
         core.startGroup(`For ${key} with condition ${JSON.stringify(globs)}`);
+        const gs = globs;
+        if (args?.include) {
+            core.debug(`Include ${key} to match the inputs.`);
+            gs.push(key);
+        }
         const files = (0, micromatch_1.default)(targets, globs);
         core.debug(`Micromatch-ed: ${JSON.stringify(files)}`);
         if (files.length) {

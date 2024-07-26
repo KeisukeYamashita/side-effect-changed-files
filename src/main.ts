@@ -15,6 +15,7 @@ export async function run(): Promise<void> {
 			escape_json: core.getInput("escape_json", { required: true }) === "true",
 			files: core.getInput("files", { required: false }).split(" "),
 			filter: core.getMultilineInput("filter", { required: false }),
+			include: core.getInput("include", { required: false }) === "true",
 			json:
 				core.getInput("json", { required: true }) === "true" ||
 				core.getInput("matrix", { required: true }) === "true",

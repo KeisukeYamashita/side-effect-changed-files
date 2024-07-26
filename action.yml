@@ -25,6 +25,10 @@ inputs:
     description: Filter the results with glob pattern.
     required: false
 
+  include:
+    description: Include the result glob pattern to match the inputs.
+    required: false
+
   json:
     description: Output files in JSON format.
     required: false

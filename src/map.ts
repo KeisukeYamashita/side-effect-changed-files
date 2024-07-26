@@ -22,6 +22,11 @@ export type MapArgs = {
 	filter?: string[];
 
 	/**
+	 * Include the target glob pattern to match the inputs.
+	 */
+	include?: boolean;
+
+	/**
 	 * Merge the output of the mapping with the existing inputs.
 	 *
 	 * @default true
@@ -52,6 +57,12 @@ export async function map(
 
 	for (const [key, globs] of Object.entries(mapping)) {
 		core.startGroup(`For ${key} with condition ${JSON.stringify(globs)}`);
+
+		const gs = globs;
+		if (args?.include) {
+			core.debug(`Include ${key} to match the inputs.`);
+			gs.push(key);
+		}
 
 		const files = micromatch(targets, globs);
 		core.debug(`Micromatch-ed: ${JSON.stringify(files)}`);
