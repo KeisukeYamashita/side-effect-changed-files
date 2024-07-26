@@ -23,6 +23,11 @@ export type Config = {
 	filter?: string[];
 
 	/**
+	 * Include the target glob pattern to match the inputs.
+	 */
+	include?: boolean;
+
+	/**
 	 * YAML configuration for the mapping.
 	 *
 	 * It describes which files should be mapped to which output.
