@@ -1,5 +1,10 @@
 export type Config = {
 	/**
+	 * Bypass the check and outputs for the matching files.
+	 */
+	bypass: string[];
+
+	/**
 	 * Output unique changed directories instead of filenames.
 	 */
 	dirNames: boolean;
@@ -20,7 +25,7 @@ export type Config = {
 	/**
 	 * Filter glob patterns.
 	 */
-	filter?: string[];
+	filters?: string[];
 
 	/**
 	 * Include the target glob pattern to match the inputs.

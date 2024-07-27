@@ -7,6 +7,11 @@ import * as path from "node:path";
 
 export type MapArgs = {
 	/**
+	 * Bypass the check and outputs for the matching files.
+	 */
+	bypass: string[];
+
+	/**
 	 * Output unique changed directories instead of filenames.
 	 */
 	dirNames?: boolean;
@@ -55,6 +60,14 @@ export async function map(
 	core.startGroup(`Mapping files for ${kind}...`);
 	core.debug(`Arguments: ${JSON.stringify(args)}`);
 
+	if (args?.bypass?.length) {
+		const files = micromatch(targets, args.bypass);
+		core.debug(
+			`Bypassed ${JSON.stringify(files)} with ${JSON.stringify(args.bypass)}`,
+		);
+		results.push(...files);
+	}
+
 	for (const [key, globs] of Object.entries(mapping)) {
 		core.startGroup(`For ${key} with condition ${JSON.stringify(globs)}`);
 
@@ -68,14 +81,9 @@ export async function map(
 		core.debug(`Micromatch-ed: ${JSON.stringify(files)}`);
 
 		if (files.length) {
-			let result = await fg.glob(key);
+			const result = await fg.glob(key);
 
 			core.debug(`Globbed: ${JSON.stringify(result)}`);
-			if (args?.dirNames) {
-				result = result.map((f) => path.dirname(f));
-				result = Array.from(new Set(result)); // Remove duplications
-			}
-
 			core.info(`Found ${JSON.stringify(result)}`);
 			results.push(...result);
 		}
@@ -96,10 +104,15 @@ export async function map(
 		core.debug(`Filtered: ${JSON.stringify(results)}`);
 	}
 
+	if (args?.dirNames) {
+		results = results.map((f) => path.dirname(f));
+		results = Array.from(new Set(results)); // Remove duplications
+	}
+
 	core.info(`Result: ${JSON.stringify(results)}`);
 
 	util.setOutput(kind, results, {
-		count: true,
+		count: true, // Note: As for now, always count the results
 		json: args?.json,
 		escape_json: args?.escape_json,
 	});

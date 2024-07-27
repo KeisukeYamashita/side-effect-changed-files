@@ -11,10 +11,11 @@ import { map } from "./map";
 export async function run(): Promise<void> {
 	try {
 		const config: Config = {
+			bypass: core.getMultilineInput("bypass", { required: false }),
 			dirNames: core.getInput("dir_names", { required: true }) === "true",
 			escape_json: core.getInput("escape_json", { required: true }) === "true",
 			files: core.getInput("files", { required: false }).split(" "),
-			filter: core.getMultilineInput("filter", { required: false }),
+			filters: core.getMultilineInput("filters", { required: false }),
 			include: core.getInput("include", { required: false }) === "true",
 			json:
 				core.getInput("json", { required: true }) === "true" ||

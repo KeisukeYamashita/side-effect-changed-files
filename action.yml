@@ -7,6 +7,10 @@ branding:
   color: gray-dark
 
 inputs:
+  bypass:
+    description: Bypass the check and outputs for the matching files.
+    required: false
+
   dir_names:
     description: Output unique changed directories instead of filenames.
     required: true
@@ -21,7 +25,7 @@ inputs:
     description: Files to check for the side effects.
     required: true
 
-  filter:
+  filters:
     description: Filter the results with glob pattern.
     required: false
 

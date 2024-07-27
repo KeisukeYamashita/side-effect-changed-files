@@ -32175,10 +32175,11 @@ const map_1 = __nccwpck_require__(1624);
 async function run() {
     try {
         const config = {
+            bypass: core.getMultilineInput("bypass", { required: false }),
             dirNames: core.getInput("dir_names", { required: true }) === "true",
             escape_json: core.getInput("escape_json", { required: true }) === "true",
             files: core.getInput("files", { required: false }).split(" "),
-            filter: core.getMultilineInput("filter", { required: false }),
+            filters: core.getMultilineInput("filters", { required: false }),
             include: core.getInput("include", { required: false }) === "true",
             json: core.getInput("json", { required: true }) === "true" ||
                 core.getInput("matrix", { required: true }) === "true",
@@ -32244,6 +32245,11 @@ async function map(kind, targets, mapping, args) {
     let results = [];
     core.startGroup(`Mapping files for ${kind}...`);
     core.debug(`Arguments: ${JSON.stringify(args)}`);
+    if (args?.bypass?.length) {
+        const files = (0, micromatch_1.default)(targets, args.bypass);
+        core.debug(`Bypassed ${JSON.stringify(files)} with ${JSON.stringify(args.bypass)}`);
+        results.push(...files);
+    }
     for (const [key, globs] of Object.entries(mapping)) {
         core.startGroup(`For ${key} with condition ${JSON.stringify(globs)}`);
         const gs = globs;
@@ -32254,12 +32260,8 @@ async function map(kind, targets, mapping, args) {
         const files = (0, micromatch_1.default)(targets, globs);
         core.debug(`Micromatch-ed: ${JSON.stringify(files)}`);
         if (files.length) {
-            let result = await fast_glob_1.default.glob(key);
+            const result = await fast_glob_1.default.glob(key);
             core.debug(`Globbed: ${JSON.stringify(result)}`);
-            if (args?.dirNames) {
-                result = result.map((f) => path.dirname(f));
-                result = Array.from(new Set(result)); // Remove duplications
-            }
             core.info(`Found ${JSON.stringify(result)}`);
             results.push(...result);
         }
@@ -32274,9 +32276,13 @@ async function map(kind, targets, mapping, args) {
         results = (0, micromatch_1.default)(results, args.filter);
         core.debug(`Filtered: ${JSON.stringify(results)}`);
     }
+    if (args?.dirNames) {
+        results = results.map((f) => path.dirname(f));
+        results = Array.from(new Set(results)); // Remove duplications
+    }
     core.info(`Result: ${JSON.stringify(results)}`);
     util.setOutput(kind, results, {
-        count: true,
+        count: true, // Note: As for now, always count the results
         json: args?.json,
         escape_json: args?.escape_json,
     });
