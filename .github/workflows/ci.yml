@@ -28,6 +28,7 @@ jobs:
         uses: ./
         with:
           files: ${{ steps.changed-files.outputs.all_changed_files }}
+          bypass: "**/*.yml"
           mapping: |
             .github/workflows/*.yml:
               - src/**/*.ts
