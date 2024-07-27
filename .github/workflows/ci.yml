@@ -28,14 +28,14 @@ jobs:
         uses: ./
         with:
           files: ${{ steps.changed-files.outputs.all_changed_files }}
+          bypass: "**/*.yml"
           mapping: |
             .github/workflows/*.yml:
               - src/**/*.ts
 
-            src/*.ts:
+            src/{map,util}.ts:
               - .github/workflows/*.yml
           matrix: true
-          merge: true
     
   hello:
     name: Hello
