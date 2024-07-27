@@ -35,7 +35,6 @@ jobs:
             src/*.ts:
               - .github/workflows/*.yml
           matrix: true
-          merge: true
     
   hello:
     name: Hello
