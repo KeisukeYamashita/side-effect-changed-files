@@ -32179,11 +32179,7 @@ async function run() {
             dirNames: core.getInput("dir_names", { required: true }) === "true",
             escape_json: core.getInput("escape_json", { required: true }) === "true",
             files: core.getInput("files", { required: false }).split(" "),
-<<<<<<< HEAD
             filters: core.getMultilineInput("filters", { required: false }),
-=======
-            filter: core.getMultilineInput("filter", { required: false }),
->>>>>>> @{-1}
             include: core.getInput("include", { required: false }) === "true",
             json: core.getInput("json", { required: true }) === "true" ||
                 core.getInput("matrix", { required: true }) === "true",
