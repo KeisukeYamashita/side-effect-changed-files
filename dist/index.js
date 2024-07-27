@@ -32167,6 +32167,7 @@ exports.run = run;
 const core = __importStar(__nccwpck_require__(2186));
 const yaml_1 = __importDefault(__nccwpck_require__(4083));
 const map_1 = __nccwpck_require__(1624);
+const util = __importStar(__nccwpck_require__(2629));
 /**
  * The main function for the action.
  *
@@ -32175,11 +32176,11 @@ const map_1 = __nccwpck_require__(1624);
 async function run() {
     try {
         const config = {
-            bypass: core.getMultilineInput("bypass", { required: false }),
+            bypass: util.getMultilineInput("bypass", { required: false }),
             dirNames: core.getInput("dir_names", { required: true }) === "true",
             escape_json: core.getInput("escape_json", { required: true }) === "true",
-            files: core.getInput("files", { required: false }).split(" "),
-            filters: core.getMultilineInput("filters", { required: false }),
+            files: util.getMultilineInput("files", { required: false }),
+            filters: util.getMultilineInput("filters", { required: false }),
             include: core.getInput("include", { required: false }) === "true",
             json: core.getInput("json", { required: true }) === "true" ||
                 core.getInput("matrix", { required: true }) === "true",
@@ -32241,7 +32242,7 @@ const path = __importStar(__nccwpck_require__(9411));
 /**
  * Map processes the mapping and the input and output of the data.
  */
-async function map(kind, targets, mapping, args) {
+async function map(kind, targets = [], mapping = {}, args) {
     let results = [];
     core.startGroup(`Mapping files for ${kind}...`);
     core.debug(`Arguments: ${JSON.stringify(args)}`);
@@ -32322,8 +32323,12 @@ var __importStar = (this && this.__importStar) || function (mod) {
     return result;
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.getMultilineInput = getMultilineInput;
 exports.setOutput = setOutput;
 const core = __importStar(__nccwpck_require__(2186));
+function getMultilineInput(name, options) {
+    return core.getMultilineInput(name, options).flatMap((x) => x.split(" "));
+}
 function setOutput(kind, value, opts) {
     /**
      * Inspired by tf-actions/changed-files

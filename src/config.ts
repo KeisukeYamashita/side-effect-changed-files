@@ -2,7 +2,7 @@ export type Config = {
 	/**
 	 * Bypass the check and outputs for the matching files.
 	 */
-	bypass: string[];
+	bypass?: string[];
 
 	/**
 	 * Output unique changed directories instead of filenames.
@@ -20,7 +20,7 @@ export type Config = {
 	 * In most cases, this will be the output of `tf-actions/changed-files` and it will be
 	 * trigger a side effect in the `map` function.
 	 */
-	files: string[];
+	files?: string[];
 
 	/**
 	 * Filter glob patterns.

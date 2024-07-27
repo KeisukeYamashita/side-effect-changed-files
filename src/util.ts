@@ -7,6 +7,13 @@ export type SetOutputOptions = {
 	json?: boolean;
 };
 
+export function getMultilineInput(
+	name: string,
+	options?: core.InputOptions,
+): string[] | undefined {
+	return core.getMultilineInput(name, options).flatMap((x) => x.split(" "));
+}
+
 export function setOutput(
 	kind: Kind,
 	value: string[],

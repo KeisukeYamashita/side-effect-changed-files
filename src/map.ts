@@ -9,7 +9,7 @@ export type MapArgs = {
 	/**
 	 * Bypass the check and outputs for the matching files.
 	 */
-	bypass: string[];
+	bypass?: string[];
 
 	/**
 	 * Output unique changed directories instead of filenames.
@@ -51,8 +51,8 @@ export type MapArgs = {
  */
 export async function map(
 	kind: Kind,
-	targets: string[],
-	mapping: Record<string, string[]>,
+	targets: string[] = [],
+	mapping: Record<string, string[]> = {},
 	args?: MapArgs,
 ): Promise<string[]> {
 	let results: string[] = [];
