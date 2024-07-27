@@ -19,16 +19,24 @@ jobs:
       - uses: actions/checkout@v4
 
       - uses: tj-actions/changed-files@v44
-        id: changed-files
+        id: changed-files-ts
         with:
-          files: "**/*"
+          files: "src/**/*.ts"
+
+      - uses: tj-actions/changed-files@v44
+        id: changed-files-yamls
+        with:
+          files: ".github/**/*.yml"
+
 
       - name: Test Local Action
         id: test-action
         uses: ./
         with:
-          files: ${{ steps.changed-files.outputs.all_changed_files }}
-          bypass: "**/*.yml"
+          files: |
+           ${{ steps.changed-files-ts.outputs.all_changed_files }}
+           ${{ steps.changed-files-yamls.outputs.all_changed_files }}
+          bypass: "**/*.yml **/*.ts"
           mapping: |
             .github/workflows/*.yml:
               - src/**/*.ts
