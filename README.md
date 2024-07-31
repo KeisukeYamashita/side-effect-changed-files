@@ -56,6 +56,62 @@ jobs:
           done
 ```
 
+### Inputs
+
+| Name     | Description                                                                 | Required | Default | Example |
+|----------|-----------------------------------------------------------------------------|----------|---------|----|
+| `bypass` | Glob pattern to bypass the mapping. | No | `**/*.yml` |
+| `dir_names` | Output unique changed directories instead of filenames. For example, if `terraform/modules/main.tf` matched as a result of the mapping, `terraform/module` will be output.  | No | `false` | `true` |
+| `escape_json` | Escape JSON special characters. | No | `false` | `true` |
+| `files` | Changed files. It can be in multiline. See the following section for details. | No | `[]` | `terraform/modules/main.tf terraform/modules/variable.tf` |
+| `filters` | Filters the matched files. It can be in multiline. See the following section for details. | No | `[]` | `!terraform/modules/ignore.tf` |
+| `include` | Include the mapping target to the glob pattern. | No | `false` | `true` |
+| `json` | Output as JSON format. It is compatible with [tj-actions/changed-files](https://github.com/tj-actions/changed-files) outputs with `json` enabled. | No | `false` | `true` |
+| `mapping` | YAML formatted mapping to match changed files. | Yes | | See the examples |
+| `mapping_file` | YAML file path to match changed files. | No | `.github/side-effect.yml` | `./mapping.yml` |
+| `matrix` | Output files in a format that can be used for GitHub Action's matrix strategy. It is alias of `json` with `true` and `escape_json` with `false`. It is intended to be enabled, when using the output as GitHub Actions matrix. | No | `false` | `true` |
+| `merge` | Merge the matched files and the inputs (files passed by `files`). If `A` matched as a result of mapping from `B`, the output will include `A` and `B`. | No | `false` | `true` |
+
+### Multiline Inputs
+
+Some fields support multiline.
+
+```yaml
+...
+      - uses: tj-actions/changed-files@v44
+        id: rust-changes
+        files:
+          - '**/*.rs'
+
+      - uses: tj-actions/changed-files@v44
+        id: typescript-changes
+        files:
+          - '**/*.ts'
+
+      - name: Get changed files
+        id: changed-files
+        uses: KeisukeYamashita/side-effect-changed-files@v1
+        with: 
+          files: |
+            ${{ steps.rust-changes.outputs.files }}
+            ${{ steps.typescript-changes.outputs.files }}
+          mapping: |
+            server/*.tf:
+              - **/*.rs
+
+            ui/*.tf:
+              - **/*.ts
+      ...
+```
+
+### Outputs
+
+| Name     | Type | Description |
+|----------|----|-------------|
+| `changed` | `boolean` | Whether the files are changed based on the mapping. |
+| `files`  | `string` or `JSON` (if `json` is `true`) | List of the mapped files. |
+| `files_count` | `number` | Count of the mapped files. |
+
 ## Globbing
 
 This action supports globbing pattern to match files backed by [micromatch](https://www.npmjs.com/package/micromatch):
