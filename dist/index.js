@@ -32168,6 +32168,7 @@ const core = __importStar(__nccwpck_require__(2186));
 const yaml_1 = __importDefault(__nccwpck_require__(4083));
 const map_1 = __nccwpck_require__(1624);
 const util = __importStar(__nccwpck_require__(2629));
+const fs = __importStar(__nccwpck_require__(3977));
 /**
  * The main function for the action.
  *
@@ -32184,10 +32185,23 @@ async function run() {
             include: core.getInput("include", { required: false }) === "true",
             json: core.getInput("json", { required: true }) === "true" ||
                 core.getInput("matrix", { required: true }) === "true",
-            mapping: yaml_1.default.parse(core.getInput("mapping", { required: true })),
+            mapping: yaml_1.default.parse(core.getInput("mapping", { required: false })),
+            mapping_file: core.getInput("mapping_file", { required: true }),
             merge: core.getInput("merge", { required: true }) === "true",
         };
         core.debug(`Input changes: ${JSON.stringify(config.files)}`);
+        if (config.mapping_file) {
+            core.debug(`Reading mapping file: ${config.mapping_file}`);
+            const file = await fs.readFile(config.mapping_file, "utf-8");
+            config.mapping = {
+                ...config.mapping,
+                ...yaml_1.default.parse(file),
+            };
+        }
+        if (!config.mapping) {
+            core.setFailed("Either `mapping` or `mapping_file` is required.");
+        }
+        core.debug(`Mapping: ${JSON.stringify(config.mapping)}`);
         const results = await (0, map_1.map)("files", config.files, config.mapping, {
             ...config,
         });
@@ -32456,6 +32470,14 @@ module.exports = require("net");
 
 "use strict";
 module.exports = require("node:events");
+
+/***/ }),
+
+/***/ 3977:
+/***/ ((module) => {
+
+"use strict";
+module.exports = require("node:fs/promises");
 
 /***/ }),
 

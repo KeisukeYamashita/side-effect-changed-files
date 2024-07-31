@@ -1,0 +1,5 @@
+.github/workflows/*.yml:
+  - src/**/*.ts
+
+src/{map,util}.ts:
+  - .github/workflows/*.yml
