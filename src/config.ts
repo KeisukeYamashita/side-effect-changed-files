@@ -37,7 +37,12 @@ export type Config = {
 	 *
 	 * It describes which files should be mapped to which output.
 	 */
-	mapping: Record<string, string[]>;
+	mapping?: Record<string, string[]>;
+
+	/**
+	 * Path to the YAML.
+	 */
+	mapping_file?: string;
 
 	/**
 	 * Merge the output of the mapping with the existing outputs.

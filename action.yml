@@ -39,8 +39,13 @@ inputs:
     default: "false"
 
   mapping:
-    description: Mapping of the files and its side effects.
+    description: Mapping of the files and its side effects. If you specify `mapping_file` field, it will be merged with the mapping.
+    required: false
+
+  mapping_file:
+    description: Mapping file of the files and its side effects. If you specify `mapping` field, it will be merged with the mapping.
     required: true
+    default: ".github/side-effect.yml"
 
   matrix:
     description: Output files in a format that can be used for GitHub Action's matrix strategy.
