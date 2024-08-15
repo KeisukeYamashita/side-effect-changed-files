@@ -4,13 +4,13 @@
   "version": "0.1.0",
   "author": "KeisukeYamashita <19yamashita15@gmail.com>",
   "private": true,
-  "homepage": "https://github.com/KeisukeYamashita/merge-changed-files",
+  "homepage": "https://github.com/KeisukeYamashita/side-effect-changed-files",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/KeisukeYamashita/merge-changed-files.git"
+    "url": "git+https://github.com/KeisukeYamashita/side-effect-changed-files.git"
   },
   "bugs": {
-    "url": "https://github.com/KeisukeYamashita/merge-changed-files/issues"
+    "url": "https://github.com/KeisukeYamashita/side-effect-changed-files/issues"
   },
   "keywords": [
     "actions",
