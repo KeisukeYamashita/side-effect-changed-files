@@ -67,7 +67,7 @@
   },
   "dependencies": {
     "@actions/core": "^1.11.1",
-    "fast-glob": "^3.3.2",
+    "fast-glob": "^3.3.3",
     "micromatch": "^4.0.7",
     "yaml": "^2.6.1"
   },
