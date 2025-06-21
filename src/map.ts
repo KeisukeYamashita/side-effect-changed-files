@@ -17,6 +17,12 @@ export type MapArgs = {
 	dirNames?: boolean;
 
 	/**
+	 * Maximum depth of directory paths when using dirNames.
+	 * A value of 1 will include only the top-level directory.
+	 */
+	dirNamesMaxDepth?: number;
+
+	/**
 	 * Escape JSON special characters.
 	 */
 	escape_json?: boolean;
@@ -106,6 +112,17 @@ export async function map(
 
 	if (args?.dirNames) {
 		results = results.map((f) => path.dirname(f));
+
+		// Only applies if dir_names is true.
+		// Ref: https://github.com/tj-actions/changed-files/blob/62f4729b5df35e6e0e01265fa70a82ccaf196b4b/src/changedFiles.ts#L316
+		if (args?.dirNamesMaxDepth && args.dirNamesMaxDepth >= 0) {
+			results = results.map((f) =>
+				f
+					.split(path.sep)
+					.slice(0, args.dirNamesMaxDepth ?? f.split(path.sep).length)
+					.join(path.sep),
+			);
+		}
 		results = Array.from(new Set(results)); // Remove duplications
 	}
 

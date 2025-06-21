@@ -10,6 +10,11 @@ export type Config = {
 	dirNames: boolean;
 
 	/**
+	 * Maximum depth of directories to include in the output.
+	 */
+	dirNamesMaxDepth?: number;
+
+	/**
 	 * Escape JSON special characters.
 	 */
 	escape_json: boolean;

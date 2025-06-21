@@ -15,6 +15,10 @@ export async function run(): Promise<void> {
 		const config: Config = {
 			bypass: util.getMultilineInput("bypass", { required: false }),
 			dirNames: core.getInput("dir_names", { required: true }) === "true",
+			dirNamesMaxDepth: Number.parseInt(
+				core.getInput("dir_names_max_depth", { required: false }) || "0",
+				10,
+			),
 			escape_json: core.getInput("escape_json", { required: true }) === "true",
 			files: util.getMultilineInput("files", { required: false }),
 			filters: util.getMultilineInput("filters", { required: false }),

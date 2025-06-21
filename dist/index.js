@@ -32902,6 +32902,7 @@ async function run() {
         const config = {
             bypass: util.getMultilineInput("bypass", { required: false }),
             dirNames: core.getInput("dir_names", { required: true }) === "true",
+            dirNamesMaxDepth: Number.parseInt(core.getInput("dir_names_max_depth", { required: false }) || "0", 10),
             escape_json: core.getInput("escape_json", { required: true }) === "true",
             files: util.getMultilineInput("files", { required: false }),
             filters: util.getMultilineInput("filters", { required: false }),
@@ -33026,6 +33027,14 @@ async function map(kind, targets = [], mapping = {}, args) {
     }
     if (args?.dirNames) {
         results = results.map((f) => path.dirname(f));
+        // Only applies if dir_names is true.
+        // Ref: https://github.com/tj-actions/changed-files/blob/62f4729b5df35e6e0e01265fa70a82ccaf196b4b/src/changedFiles.ts#L316
+        if (args?.dirNamesMaxDepth && args.dirNamesMaxDepth >= 0) {
+            results = results.map((f) => f
+                .split(path.sep)
+                .slice(0, args.dirNamesMaxDepth ?? f.split(path.sep).length)
+                .join(path.sep));
+        }
         results = Array.from(new Set(results)); // Remove duplications
     }
     core.info(`Result: ${JSON.stringify(results)}`);
