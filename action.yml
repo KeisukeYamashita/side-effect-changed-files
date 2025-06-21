@@ -16,6 +16,10 @@ inputs:
     required: true
     default: "false"
 
+  dir_names_max_depth:
+    description: Limit the directory output to a maximum depth.
+    required: false
+
   escape_json:
     description: Escape JSON special characters.
     required: false
