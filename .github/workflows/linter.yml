@@ -29,7 +29,7 @@ jobs:
 
       - run: npm ci
 
-      - uses: mongolyy/reviewdog-action-biome@v1
+      - uses: mongolyy/reviewdog-action-biome@v2
         with:
           biome_flags: src/
           reporter: github-pr-review
