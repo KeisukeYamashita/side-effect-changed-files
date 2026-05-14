@@ -32888,6 +32888,314 @@ module.exports = {
 
 /***/ }),
 
+/***/ 4685:
+/***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
+
+"use strict";
+
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.generateTerraformMapping = generateTerraformMapping;
+exports.extractModuleSources = extractModuleSources;
+exports.stripComments = stripComments;
+const fs = __importStar(__nccwpck_require__(1455));
+const path = __importStar(__nccwpck_require__(6760));
+const core = __importStar(__nccwpck_require__(6966));
+const fast_glob_1 = __importDefault(__nccwpck_require__(197));
+const DEFAULT_IGNORE = ["**/.terraform/**", "**/node_modules/**"];
+/**
+ * Generates a mapping for terraform module usage.
+ *
+ * For every `module "..." { source = "..." }` block whose source is a local
+ * path, an entry is added so that when any file under the referenced module
+ * directory changes the consumer's tf files are output.
+ *
+ * The produced mapping is shaped as:
+ *
+ *   {
+ *     "<consumer-dir>/**\/*.tf": ["<module-dir>/**\/*.tf", ...]
+ *   }
+ *
+ * Non-local module sources (registry, git, http, ...) and sources resolving
+ * outside `workingDir` are skipped.
+ */
+async function generateTerraformMapping(args) {
+    const workingDir = path.resolve(args?.workingDir ?? process.cwd());
+    const ignore = [...DEFAULT_IGNORE, ...(args?.ignore ?? [])];
+    const tfFiles = await fast_glob_1.default.glob("**/*.tf", {
+        cwd: workingDir,
+        ignore,
+        onlyFiles: true,
+        dot: false,
+    });
+    core.debug(`Terraform generator: scanning ${tfFiles.length} .tf files`);
+    const mapping = {};
+    // Remote sources cannot be globbed against repository files, so we group
+    // consumers that share the same exact remote source string. Each group
+    // becomes an equivalence class: changing one consumer in the group triggers
+    // the others. The source string is the identity, so different `?ref=`
+    // values are intentionally not grouped together.
+    const remoteGroups = {};
+    for (const rel of tfFiles) {
+        const abs = path.join(workingDir, rel);
+        let content;
+        try {
+            content = await fs.readFile(abs, "utf-8");
+        }
+        catch (err) {
+            core.warning(`Failed to read ${rel}: ${err.message}`);
+            continue;
+        }
+        const sources = extractModuleSources(content);
+        if (sources.length === 0)
+            continue;
+        const consumerDir = path.dirname(rel);
+        const consumerGlob = toTfGlob(consumerDir);
+        for (const source of sources) {
+            if (isLocalSource(source)) {
+                const moduleAbs = path.resolve(path.dirname(abs), source);
+                const moduleRel = path.relative(workingDir, moduleAbs);
+                // Skip module sources that resolve outside of the working directory.
+                if (moduleRel === "" || moduleRel.startsWith(".."))
+                    continue;
+                const moduleGlob = toTfGlob(moduleRel);
+                // A module entry that points at itself is a no-op.
+                if (moduleGlob === consumerGlob)
+                    continue;
+                addEdge(mapping, consumerGlob, moduleGlob);
+                continue;
+            }
+            if (!remoteGroups[source])
+                remoteGroups[source] = new Set();
+            remoteGroups[source].add(consumerGlob);
+        }
+    }
+    for (const [source, members] of Object.entries(remoteGroups)) {
+        if (members.size < 2)
+            continue;
+        core.debug(`Terraform generator: ${members.size} consumers share remote source ${source}`);
+        const all = Array.from(members);
+        for (const self of all) {
+            for (const other of all) {
+                if (other === self)
+                    continue;
+                addEdge(mapping, self, other);
+            }
+        }
+    }
+    const result = {};
+    for (const [key, set] of Object.entries(mapping)) {
+        result[key] = Array.from(set).sort();
+    }
+    return result;
+}
+function addEdge(mapping, key, value) {
+    if (!mapping[key])
+        mapping[key] = new Set();
+    mapping[key].add(value);
+}
+/**
+ * Convert a directory (relative to the working dir) into a `**\/*.tf` glob.
+ * The current directory is represented as `"."`.
+ */
+function toTfGlob(dir) {
+    const normalized = dir.split(path.sep).join("/");
+    if (normalized === "" || normalized === ".")
+        return "**/*.tf";
+    return `${normalized}/**/*.tf`;
+}
+function isLocalSource(source) {
+    return source.startsWith("./") || source.startsWith("../");
+}
+/**
+ * Extract the `source` values from every `module "..." { ... }` block in the
+ * given HCL content. Brace-aware so blocks containing nested blocks (e.g.
+ * `providers { ... }`) are handled correctly.
+ */
+function extractModuleSources(content) {
+    const cleaned = stripComments(content);
+    const sources = [];
+    const moduleStart = /\bmodule\s+"[^"]+"\s*\{/g;
+    let match;
+    // biome-ignore lint/suspicious/noAssignInExpressions: idiomatic global regex iteration
+    while ((match = moduleStart.exec(cleaned)) !== null) {
+        const openIdx = match.index + match[0].length - 1; // index of `{`
+        const closeIdx = findMatchingBrace(cleaned, openIdx);
+        if (closeIdx === -1)
+            continue;
+        const block = cleaned.slice(openIdx + 1, closeIdx);
+        const source = extractTopLevelSource(block);
+        if (source !== undefined)
+            sources.push(source);
+        // Continue scanning after the block to avoid matching `module` keywords
+        // nested inside another module's body (which would be invalid anyway).
+        moduleStart.lastIndex = closeIdx + 1;
+    }
+    return sources;
+}
+/**
+ * Returns the index of the `}` that matches the `{` at `openIdx`, or -1 if
+ * the braces are unbalanced. Strings are skipped so braces inside HCL string
+ * literals are not counted.
+ */
+function findMatchingBrace(s, openIdx) {
+    let depth = 0;
+    let inString = false;
+    for (let i = openIdx; i < s.length; i++) {
+        const ch = s[i];
+        if (inString) {
+            if (ch === "\\") {
+                i++;
+                continue;
+            }
+            if (ch === '"')
+                inString = false;
+            continue;
+        }
+        if (ch === '"') {
+            inString = true;
+            continue;
+        }
+        if (ch === "{")
+            depth++;
+        else if (ch === "}") {
+            depth--;
+            if (depth === 0)
+                return i;
+        }
+    }
+    return -1;
+}
+/**
+ * Look for `source = "..."` only at the top level of a module block (depth 0),
+ * so that an inner block like `providers { source = ... }` doesn't fool us.
+ */
+function extractTopLevelSource(block) {
+    let depth = 0;
+    let inString = false;
+    for (let i = 0; i < block.length; i++) {
+        const ch = block[i];
+        if (inString) {
+            if (ch === "\\") {
+                i++;
+                continue;
+            }
+            if (ch === '"')
+                inString = false;
+            continue;
+        }
+        if (ch === '"') {
+            inString = true;
+            continue;
+        }
+        if (ch === "{") {
+            depth++;
+            continue;
+        }
+        if (ch === "}") {
+            depth--;
+            continue;
+        }
+        if (depth !== 0)
+            continue;
+        if (block.startsWith("source", i) &&
+            /\s/.test(block[i - 1] ?? "\n") // word boundary on the left
+        ) {
+            const rest = block.slice(i + "source".length);
+            const m = /^\s*=\s*"((?:[^"\\]|\\.)*)"/.exec(rest);
+            if (m)
+                return m[1];
+        }
+    }
+    return undefined;
+}
+/**
+ * Strip HCL comments (`#`, `//` line comments and slash-star block comments).
+ * Strings are preserved.
+ */
+function stripComments(s) {
+    let out = "";
+    let i = 0;
+    let inString = false;
+    while (i < s.length) {
+        const ch = s[i];
+        if (inString) {
+            out += ch;
+            if (ch === "\\" && i + 1 < s.length) {
+                out += s[i + 1];
+                i += 2;
+                continue;
+            }
+            if (ch === '"')
+                inString = false;
+            i++;
+            continue;
+        }
+        if (ch === '"') {
+            inString = true;
+            out += ch;
+            i++;
+            continue;
+        }
+        if (ch === "/" && s[i + 1] === "*") {
+            const end = s.indexOf("*/", i + 2);
+            i = end === -1 ? s.length : end + 2;
+            continue;
+        }
+        if (ch === "/" && s[i + 1] === "/") {
+            const nl = s.indexOf("\n", i + 2);
+            i = nl === -1 ? s.length : nl;
+            continue;
+        }
+        if (ch === "#") {
+            const nl = s.indexOf("\n", i + 1);
+            i = nl === -1 ? s.length : nl;
+            continue;
+        }
+        out += ch;
+        i++;
+    }
+    return out;
+}
+
+
+/***/ }),
+
 /***/ 7353:
 /***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
 
@@ -32931,11 +33239,12 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.run = run;
+const fs = __importStar(__nccwpck_require__(1455));
 const core = __importStar(__nccwpck_require__(6966));
 const yaml_1 = __importDefault(__nccwpck_require__(84));
+const terraform_1 = __nccwpck_require__(4685);
 const map_1 = __nccwpck_require__(2584);
 const util = __importStar(__nccwpck_require__(4352));
-const fs = __importStar(__nccwpck_require__(1455));
 /**
  * The main function for the action.
  *
@@ -32943,6 +33252,8 @@ const fs = __importStar(__nccwpck_require__(1455));
  */
 async function run() {
     try {
+        const autoInput = core.getInput("auto", { required: false });
+        const auto = autoInput ? assertAuto(autoInput) : undefined;
         const config = {
             bypass: util.getMultilineInput("bypass", { required: false }),
             dirNames: core.getInput("dir_names", { required: true }) === "true",
@@ -32954,23 +33265,35 @@ async function run() {
             json: core.getInput("json", { required: true }) === "true" ||
                 core.getInput("matrix", { required: true }) === "true",
             mapping: yaml_1.default.parse(core.getInput("mapping", { required: false })),
-            mapping_file: core.getInput("mapping_file", { required: true }),
+            mapping_file: core.getInput("mapping_file", { required: false }),
             merge: core.getInput("merge", { required: true }) === "true",
+            auto,
         };
         core.debug(`Input changes: ${JSON.stringify(config.files)}`);
-        if (config.mapping_file) {
-            core.debug(`Reading mapping file: ${config.mapping_file}`);
-            const file = await fs.readFile(config.mapping_file, "utf-8");
+        if (config.auto === "terraform") {
+            core.debug("Generating terraform mapping...");
+            const generated = await (0, terraform_1.generateTerraformMapping)();
             config.mapping = {
                 ...config.mapping,
-                ...yaml_1.default.parse(file),
+                ...generated,
             };
         }
-        if (!config.mapping) {
-            core.setFailed("Either `mapping` or `mapping_file` is required.");
+        if (config.mapping_file) {
+            core.debug(`Reading mapping file: ${config.mapping_file}`);
+            const file = await readMappingFile(config.mapping_file, config.auto);
+            if (file !== undefined) {
+                config.mapping = {
+                    ...config.mapping,
+                    ...yaml_1.default.parse(file),
+                };
+            }
+        }
+        if (!config.mapping || Object.keys(config.mapping).length === 0) {
+            core.setFailed("No mapping resolved. Provide `mapping`, `mapping_file`, or `auto`.");
+            return;
         }
         core.debug(`Mapping: ${JSON.stringify(config.mapping)}`);
-        const results = await (0, map_1.map)("files", config.files, config.mapping, {
+        await (0, map_1.map)("files", config.files, config.mapping, {
             ...config,
         });
     }
@@ -32978,6 +33301,34 @@ async function run() {
         if (error instanceof Error)
             core.setFailed(error.message);
     }
+}
+function assertAuto(input) {
+    if (input === "terraform")
+        return "terraform";
+    throw new Error(`Unsupported \`auto\` value: ${input}. Supported: terraform`);
+}
+/**
+ * Read the mapping file. When `auto` is set the default `.github/side-effect.yml`
+ * may legitimately not exist (the mapping is generated), so a missing file is
+ * not an error in that case.
+ */
+async function readMappingFile(mappingFile, auto) {
+    try {
+        return await fs.readFile(mappingFile, "utf-8");
+    }
+    catch (err) {
+        if (auto && isMissingFile(err)) {
+            core.debug(`Mapping file ${mappingFile} not found; relying on auto=${auto}.`);
+            return undefined;
+        }
+        throw err;
+    }
+}
+function isMissingFile(err) {
+    return (typeof err === "object" &&
+        err !== null &&
+        "code" in err &&
+        err.code === "ENOENT");
 }
 
 

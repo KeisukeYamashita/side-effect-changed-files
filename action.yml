@@ -48,7 +48,7 @@ inputs:
 
   mapping_file:
     description: Mapping file of the files and its side effects. If you specify `mapping` field, it will be merged with the mapping.
-    required: true
+    required: false
     default: ".github/side-effect.yml"
 
   matrix:
@@ -60,6 +60,18 @@ inputs:
     description: Merge the files and its side effects.
     required: false
     default: "false"
+
+  auto:
+    description: |
+      Auto-generate the mapping for a known ecosystem. Currently supports `terraform`.
+
+      When set to `terraform`, the action scans `*.tf` files in the current working
+      directory, parses `module "..." { source = "..." }` blocks with local sources
+      (paths starting with `./` or `../`), and produces a mapping where the consumer
+      directory's tf files are output when any file under the referenced module
+      directory changes.
+      The generated mapping is merged with any `mapping` / `mapping_file` you provide.
+    required: false
 
 outputs:
   changed:

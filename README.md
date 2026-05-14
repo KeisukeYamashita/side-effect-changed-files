@@ -67,10 +67,11 @@ jobs:
 | `filters` | Filters the matched files. It can be in multiline. See the following section for details. | No | `[]` | `!terraform/modules/ignore.tf` |
 | `include` | Include the mapping target to the glob pattern. | No | `false` | `true` |
 | `json` | Output as JSON format. It is compatible with [tj-actions/changed-files](https://github.com/tj-actions/changed-files) outputs with `json` enabled. | No | `false` | `true` |
-| `mapping` | YAML formatted mapping to match changed files. | Yes | | See the examples |
-| `mapping_file` | YAML file path to match changed files. | No | `.github/side-effect.yml` | `./mapping.yml` |
+| `mapping` | YAML formatted mapping to match changed files. | No (when `auto` is set) | | See the examples |
+| `mapping_file` | YAML file path to match changed files. Missing file is tolerated when `auto` is set. | No | `.github/side-effect.yml` | `./mapping.yml` |
 | `matrix` | Output files in a format that can be used for GitHub Action's matrix strategy. It is alias of `json` with `true` and `escape_json` with `false`. It is intended to be enabled, when using the output as GitHub Actions matrix. | No | `false` | `true` |
 | `merge` | Merge the matched files and the inputs (files passed by `files`). If `A` matched as a result of mapping from `B`, the output will include `A` and `B`. | No | `false` | `true` |
+| `auto` | Auto-generate the mapping for a known ecosystem. The generated mapping is merged with `mapping` / `mapping_file` if provided. Currently supports `terraform`. | No | | `terraform` |
 
 ### Multiline Inputs
 
@@ -103,6 +104,58 @@ Some fields support multiline.
               - **/*.ts
       ...
 ```
+
+### Auto-generating the mapping with `auto: terraform`
+
+When working with Terraform, hand-maintaining a mapping that lists every module
+consumer is tedious. Pass `auto: terraform` and the action will scan the
+repository for `*.tf` files, extract `module "..." { source = "..." }` blocks
+with local sources (`./...`, `../...`), and produce a mapping where a change to
+files under a referenced module's directory causes the consuming directories'
+tf files to appear in the output.
+
+```yaml
+- uses: tj-actions/changed-files@v44
+  id: raw-changed-files
+  with:
+    files: '**/*.tf'
+
+- name: Detect impacted Terraform stacks
+  id: changed-files
+  uses: KeisukeYamashita/side-effect-changed-files@v1
+  with:
+    files: ${{ steps.raw-changed-files.outputs.all_changed_files }}
+    auto: terraform
+    dir_names: 'true'
+```
+
+For example, given:
+
+```text
+envs/prod/main.tf   # module "foo" { source = "../../modules/foo" }
+modules/foo/main.tf
+```
+
+a change to `modules/foo/main.tf` produces `envs/prod` in the output.
+
+**Remote sources are grouped as equivalence classes.** Modules referenced via a
+non-local source (`github.com/...`, `git::...`, the Terraform Registry, etc.)
+don't exist as files in this repository, so they're handled by grouping every
+consumer that uses the *same exact source string*. A change to any one
+consumer in the group then triggers all the others. The source string is the
+identity, so different `?ref=` values are intentionally treated as different
+modules.
+
+```text
+envs/prod/main.tf      # module "vpc" { source = "github.com/acme/tf//vpc?ref=v1.0.0" }
+envs/staging/main.tf   # module "vpc" { source = "github.com/acme/tf//vpc?ref=v1.0.0" }
+```
+
+Bumping the `?ref=` in `envs/prod/main.tf` produces both `envs/prod` and
+`envs/staging` in the output.
+
+You can still pass `mapping` / `mapping_file` alongside `auto` — entries are
+merged, with the user-provided entries winning on key conflicts.
 
 ### Outputs
 
