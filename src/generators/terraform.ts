@@ -13,6 +13,28 @@ export type GenerateTerraformMappingArgs = {
 	 * Glob patterns of `.tf` files to exclude from the scan.
 	 */
 	ignore?: string[];
+
+	/**
+	 * Identity of the repository being scanned, used to detect self-referencing
+	 * git module sources without a `?ref=` pin. When omitted, the identity is
+	 * read from the GitHub Actions environment (`GITHUB_REPOSITORY` and
+	 * `GITHUB_SERVER_URL`).
+	 *
+	 * When unavailable, self-reference detection is skipped and such sources
+	 * fall back to the regular remote-source grouping behavior.
+	 */
+	selfRepo?: SelfRepo;
+};
+
+/**
+ * Repository identity used for self-reference detection.
+ *
+ * `host` is the bare hostname (e.g. `github.com`, `ghe.example.com`) and
+ * `slug` is `<owner>/<repo>` without the `.git` suffix.
+ */
+export type SelfRepo = {
+	host: string;
+	slug: string;
 };
 
 const DEFAULT_IGNORE = ["**/.terraform/**", "**/node_modules/**"];
@@ -38,6 +60,12 @@ export async function generateTerraformMapping(
 ): Promise<Record<string, string[]>> {
 	const workingDir = path.resolve(args?.workingDir ?? process.cwd());
 	const ignore = [...DEFAULT_IGNORE, ...(args?.ignore ?? [])];
+	const selfRepo = args?.selfRepo ?? readSelfRepoFromEnv();
+	if (selfRepo) {
+		core.debug(
+			`Terraform generator: self-ref host=${selfRepo.host} slug=${selfRepo.slug}`,
+		);
+	}
 
 	const tfFiles = await fg.glob("**/*.tf", {
 		cwd: workingDir,
@@ -75,18 +103,24 @@ export async function generateTerraformMapping(
 
 		for (const source of sources) {
 			if (isLocalSource(source)) {
-				const moduleAbs = path.resolve(path.dirname(abs), source);
+				const moduleRel = resolveLocalSubpath(workingDir, abs, source);
+				if (moduleRel === undefined) continue;
+				addLocalEdge(mapping, consumerGlob, moduleRel);
+				continue;
+			}
+
+			// A self-referencing git source without `?ref=` resolves to the default
+			// branch of the same repo, which (in CI's "if this merged" semantics)
+			// effectively reads the working-tree subpath. Treat it like a local
+			// source pointing at that subpath.
+			const selfSubpath = selfRepo
+				? matchSelfReferenceSubpath(source, selfRepo)
+				: undefined;
+			if (selfSubpath !== undefined) {
+				const moduleAbs = path.resolve(workingDir, selfSubpath);
 				const moduleRel = path.relative(workingDir, moduleAbs);
-
-				// Skip module sources that resolve outside of the working directory.
 				if (moduleRel === "" || moduleRel.startsWith("..")) continue;
-
-				const moduleGlob = toTfGlob(moduleRel);
-
-				// A module entry that points at itself is a no-op.
-				if (moduleGlob === consumerGlob) continue;
-
-				addEdge(mapping, consumerGlob, moduleGlob);
+				addLocalEdge(mapping, consumerGlob, moduleRel);
 				continue;
 			}
 
@@ -123,6 +157,145 @@ function addEdge(
 ): void {
 	if (!mapping[key]) mapping[key] = new Set();
 	mapping[key].add(value);
+}
+
+/**
+ * Add a `consumer-glob <- module-dir-glob` edge, deduplicating self-loops.
+ */
+function addLocalEdge(
+	mapping: Record<string, Set<string>>,
+	consumerGlob: string,
+	moduleRel: string,
+): void {
+	const moduleGlob = toTfGlob(moduleRel);
+	if (moduleGlob === consumerGlob) return;
+	addEdge(mapping, consumerGlob, moduleGlob);
+}
+
+/**
+ * Resolve a `./...` / `../...` source relative to its consumer file and return
+ * the path relative to the working directory, or `undefined` if it resolves
+ * outside the working dir.
+ */
+function resolveLocalSubpath(
+	workingDir: string,
+	consumerAbs: string,
+	source: string,
+): string | undefined {
+	const moduleAbs = path.resolve(path.dirname(consumerAbs), source);
+	const moduleRel = path.relative(workingDir, moduleAbs);
+	if (moduleRel === "" || moduleRel.startsWith("..")) return undefined;
+	return moduleRel;
+}
+
+/**
+ * Read the self-repository identity from the GitHub Actions environment.
+ * Supports GHE: the hostname comes from `GITHUB_SERVER_URL`, falling back to
+ * `github.com` only when the URL is missing or unparsable. Returns `undefined`
+ * when `GITHUB_REPOSITORY` is unset so the caller can skip self-ref detection.
+ */
+function readSelfRepoFromEnv(): SelfRepo | undefined {
+	const slug = process.env.GITHUB_REPOSITORY?.trim();
+	if (!slug || !slug.includes("/")) return undefined;
+	const host = parseServerHost(process.env.GITHUB_SERVER_URL);
+	if (!host) return undefined;
+	return { host, slug: slug.replace(/\.git$/, "") };
+}
+
+function parseServerHost(raw: string | undefined): string | undefined {
+	const trimmed = raw?.trim();
+	if (!trimmed) return "github.com";
+	try {
+		const u = new URL(trimmed);
+		return u.host || undefined;
+	} catch {
+		return undefined;
+	}
+}
+
+/**
+ * If `source` is a self-referencing terraform module address with no `?ref=`
+ * pin, return the in-repo subpath it points at (`""` for the repo root,
+ * `"modules/foo"` for a submodule, etc.). Returns `undefined` otherwise.
+ *
+ * Supported forms (where `<host>` matches `selfRepo.host` and `<slug>` matches
+ * `selfRepo.slug`, optionally with a `.git` suffix):
+ *   - `<host>/<slug>`                       (HTTPS shorthand)
+ *   - `<host>/<slug>//<subpath>`
+ *   - `git::https://<host>/<slug>(.git)`
+ *   - `git::https://<host>/<slug>(.git)//<subpath>`
+ *   - `git::ssh://git@<host>/<slug>(.git)(//<subpath>)`
+ *   - `git@<host>:<slug>(.git)(//<subpath>)` (scp-like SSH)
+ *
+ * A `?ref=...` query parameter disqualifies the match: those sources are
+ * pinned to a specific revision and intentionally fall back to remote-source
+ * grouping.
+ */
+export function matchSelfReferenceSubpath(
+	source: string,
+	selfRepo: SelfRepo,
+): string | undefined {
+	// Reject anything with an explicit ref.
+	if (/\?(?:[^#]*&)?ref=/.test(source)) return undefined;
+	// Strip any query string (no ref present anyway) and fragment.
+	const cleaned = source.split("?")[0].split("#")[0];
+
+	const candidate = parseGitAddress(cleaned);
+	if (!candidate) return undefined;
+	if (candidate.host !== selfRepo.host) return undefined;
+	if (candidate.slug !== selfRepo.slug) return undefined;
+	return candidate.subpath;
+}
+
+type GitAddress = { host: string; slug: string; subpath: string };
+
+function parseGitAddress(raw: string): GitAddress | undefined {
+	// Detached terraform-style getter prefix (e.g. `git::https://...`).
+	const detached = raw.match(/^[a-z0-9]+::(.+)$/i);
+	const body = detached ? detached[1] : raw;
+
+	// scp-like SSH: git@host:owner/repo(//subpath)
+	const scp = body.match(/^[^@\s]+@([^:]+):([^/]+\/[^/?#]+)(?:\/\/(.*))?$/);
+	if (scp) {
+		return finalize(scp[1], scp[2], scp[3]);
+	}
+
+	// URL forms: scheme://[user@]host/owner/repo(//subpath)
+	if (/^[a-z][a-z0-9+.-]*:\/\//i.test(body)) {
+		try {
+			const u = new URL(body);
+			const [, slug, subpathFromUrl] = matchUrlPath(u.pathname) ?? [];
+			if (!slug) return undefined;
+			return finalize(u.host, slug, subpathFromUrl);
+		} catch {
+			return undefined;
+		}
+	}
+
+	// Bare form: host/owner/repo(//subpath)
+	const bare = body.match(/^([^/?#]+)\/([^/]+\/[^/?#]+)(?:\/\/(.*))?$/);
+	if (bare) {
+		return finalize(bare[1], bare[2], bare[3]);
+	}
+	return undefined;
+}
+
+function matchUrlPath(
+	pathname: string,
+): [full: string, slug: string, subpath: string | undefined] | undefined {
+	const m = pathname.match(/^\/([^/]+\/[^/]+?)(?:\/\/(.*))?\/?$/);
+	if (!m) return undefined;
+	return [m[0], m[1], m[2]];
+}
+
+function finalize(
+	host: string,
+	rawSlug: string,
+	rawSubpath: string | undefined,
+): GitAddress {
+	const slug = rawSlug.replace(/\.git$/, "");
+	const subpath = (rawSubpath ?? "").replace(/\/$/, "");
+	return { host, slug, subpath };
 }
 
 /**
