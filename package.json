@@ -23,17 +23,18 @@
   "engines": {
     "node": ">=20"
   },
+  "packageManager": "pnpm@10.16.1",
   "scripts": {
-    "bundle": "npm run format:write && npm run package",
+    "bundle": "pnpm run format:write && pnpm run package",
     "ci-test": "jest",
     "coverage": "make-coverage-badge --output-path ./badges/coverage.svg",
     "format": "biome lint src",
     "format:write": "biome lint --write src",
     "lint": "biome lint src",
-    "package": "npx ncc build src/index.ts -o dist --source-map --license licenses.txt",
-    "package:watch": "npm run package -- --watch",
-    "test": "npx jest",
-    "all": "npm run format:write && npm run lint && npm run test && npm run coverage && npm run package"
+    "package": "pnpm exec ncc build src/index.ts -o dist --source-map --license licenses.txt",
+    "package:watch": "pnpm run package -- --watch",
+    "test": "pnpm exec jest",
+    "all": "pnpm run format:write && pnpm run lint && pnpm run test && pnpm run coverage && pnpm run package"
   },
   "license": "MIT",
   "jest": {
@@ -70,6 +71,11 @@
     "fast-glob": "^3.3.2",
     "micromatch": "^4.0.7",
     "yaml": "^2.6.1"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "@biomejs/biome"
+    ]
   },
   "devDependencies": {
     "@biomejs/biome": "^1.9.4",
