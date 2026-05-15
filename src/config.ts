@@ -60,4 +60,15 @@ export type Config = {
 	 * Output with JSON format.
 	 */
 	json: boolean;
+
+	/**
+	 * Auto-generate the mapping for a known ecosystem.
+	 *
+	 * When set, the action introspects the current working directory and
+	 * produces a mapping for that ecosystem. The generated mapping is merged
+	 * with any mapping provided via `mapping` / `mapping_file`.
+	 *
+	 * Currently supports: `terraform`.
+	 */
+	auto?: "terraform";
 };
