@@ -105,7 +105,13 @@ Some fields support multiline.
       ...
 ```
 
-### Auto-generating the mapping with `auto: terraform`
+### Auto-generating the mapping (`auto`)
+
+The `auto` input opts into ecosystem-specific mapping generators. The generated
+entries are merged with anything you pass via `mapping` / `mapping_file`, so
+you can mix auto and hand-written rules.
+
+#### Terraform
 
 When working with Terraform, hand-maintaining a mapping that lists every module
 consumer is tedious. Pass `auto: terraform` and the action will scan the
@@ -154,8 +160,32 @@ envs/staging/main.tf   # module "vpc" { source = "github.com/acme/tf//vpc?ref=v1
 Bumping the `?ref=` in `envs/prod/main.tf` produces both `envs/prod` and
 `envs/staging` in the output.
 
-You can still pass `mapping` / `mapping_file` alongside `auto` — entries are
-merged, with the user-provided entries winning on key conflicts.
+**Self-referencing git sources without `?ref=` are resolved to the working
+tree.** A common pattern is to call a module from the same repository via its
+github URL without pinning a ref:
+
+```hcl
+module "vpc" {
+  source = "github.com/acme/infra//modules/vpc"
+}
+```
+
+Terraform itself resolves this against the default branch, but for the purpose
+of change detection the action treats it as if it were the local path
+`modules/vpc` — so editing a file under `modules/vpc/` triggers every consumer
+that references it this way, exactly like a `../../modules/vpc` local source
+would. The check uses the GitHub Actions environment, so it works on GHE too:
+
+- Repository identity comes from `GITHUB_REPOSITORY` (e.g. `acme/infra`).
+- Host comes from `GITHUB_SERVER_URL` (e.g. `https://ghe.example.com` for
+  GitHub Enterprise; defaults to `github.com`).
+- Sources with any `?ref=...` (commit SHA, tag, branch) are *not* treated as
+  self-references and continue to be grouped by exact-string equivalence.
+- `git::https://...`, `git::ssh://...`, and `git@host:owner/repo` SSH forms are
+  recognized in addition to the bare `host/owner/repo` form.
+
+When the environment variables are unset (e.g. running locally outside of
+Actions), self-reference detection is silently skipped.
 
 ### Outputs
 
