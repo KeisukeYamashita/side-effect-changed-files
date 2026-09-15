@@ -14,8 +14,8 @@ jobs:
       contents: write # Needed to create release notes
     runs-on: ubuntu-latest
     steps:
-      - uses: nowactions/update-majorver@v1
+      - uses: nowactions/update-majorver@f2014bbbba95b635e990ce512c5653bd0f4753fb # v1.1.2
       
-      - uses: ncipollo/release-action@v1
+      - uses: ncipollo/release-action@339a81892b84b4eeb0f6e744e4574d79d0d9b8dd # v1.21.0
         with:
           generateReleaseNotes: true
